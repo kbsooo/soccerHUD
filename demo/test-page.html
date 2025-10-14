@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SoccerHUD Demo Test Page</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #0b1d26;
+        color: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+        padding: 32px;
+      }
+      video {
+        max-width: 80vw;
+        border-radius: 12px;
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.35);
+      }
+      header {
+        text-align: center;
+        max-width: 720px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>SoccerHUD Demo</h1>
+      <p>
+        아래 HTML5 비디오는 로컬 환경에서 확장 기능을 테스트하기 위한 용도입니다. 브라우저에서 <code>demo/test-page.html</code> 파일을 열고,
+        확장을 "Load unpacked" 로 로드한 뒤 HUD가 정상적으로 렌더링되는지 확인할 수 있습니다.
+      </p>
+    </header>
+    <video controls crossorigin="anonymous">
+      <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />
+      브라우저가 HTML5 비디오 태그를 지원하지 않습니다.
+    </video>
+  </body>
+</html>
