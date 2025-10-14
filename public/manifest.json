@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "SoccerHUD",
+  "version": "0.1.0",
+  "description": "Overlay current ball possessor information on soccer broadcasts.",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "options_page": "options/index.html",
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content-script/index.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-script/index.js"],
+      "matches": ["https://www.youtube.com/*"]
+    }
+  ]
+}

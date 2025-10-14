@@ -1,0 +1,59 @@
+:root {
+  color-scheme: light dark;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #0b1d26, #203a43, #2c5364);
+  min-height: 100vh;
+  color: #f1f5f9;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 32px 64px;
+}
+
+header {
+  margin-bottom: 32px;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+p {
+  line-height: 1.6;
+}
+
+section {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+input[type='file'] {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  border-radius: 12px;
+  background-color: rgba(15, 23, 42, 0.4);
+  color: inherit;
+}
+
+small {
+  color: #cbd5f5;
+}
