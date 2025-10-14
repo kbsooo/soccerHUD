@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Soccer HUD",
+  "description": "Overlay the current ball possessor on soccer broadcasts directly in your browser.",
+  "version": "0.1.0",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["https://www.youtube.com/*", "https://youtu.be/*"],
+  "action": {
+    "default_title": "Soccer HUD"
+  },
+  "options_page": "options/index.html",
+  "background": {
+    "type": "module",
+    "service_worker": "background/index.ts"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*", "https://youtu.be/*"],
+      "js": ["content/index.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["page/index.js"],
+      "matches": ["https://www.youtube.com/*", "https://youtu.be/*"]
+    }
+  ]
+}

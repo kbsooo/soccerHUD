@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Soccer HUD Demo</title>
+    <style>
+      body {
+        font-family: 'Segoe UI', Roboto, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        margin: 0;
+        padding: 24px;
+      }
+
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+
+      video {
+        width: 100%;
+        border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.45);
+      }
+
+      h1 {
+        font-size: 2.25rem;
+        margin-bottom: 16px;
+      }
+
+      p {
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Soccer HUD Demo Video</h1>
+      <p>
+        Use this standalone page to test the content script overlay. Load the extension as unpacked,
+        open DevTools for logs, and refresh after making changes.
+      </p>
+      <video controls crossorigin="anonymous">
+        <source
+          src="https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4"
+          type="video/mp4"
+        />
+        Your browser does not support HTML5 video.
+      </video>
+    </main>
+  </body>
+</html>
