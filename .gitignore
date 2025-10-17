@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project Specific
+# 샘플 비디오 파일 (저작권 문제)
+sample_videos/*.mp4
+sample_videos/*.mov
+sample_videos/*.avi
+sample_videos/*.mkv
+sample_videos/*.webm
+!sample_videos/README.md
+
+# YOLO 모델 파일 (용량 큼)
+*.pt
+*.onnx
+*.mlmodel
+*.engine
+!models/README.md
+
+# 데이터셋 (용량 큼)
+finetuning/data/raw/
+finetuning/data/processed/
+!finetuning/data/.gitkeep
+
+# 학습 결과
+finetuning/models/*.pt
+finetuning/models/*.onnx
+runs/
+wandb/
+
+# 테스트 결과
+test_results/
+output/
+*.jpg
+*.png
+!docs/*.png
+
+# 로그
+*.log
+
+# 환경 변수
+.env
+.env.local
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Claude Code
+.claude/

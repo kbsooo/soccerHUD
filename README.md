@@ -2,7 +2,7 @@
 
 > 실시간 축구 중계에서 공을 소유한 선수를 자동으로 인식하고 표시하는 크롬 익스텐션
 
-![Phase](https://img.shields.io/badge/Phase-0%20%7C%20%EA%B2%80%EC%A6%9D-yellow)
+![Phase](https://img.shields.io/badge/Phase-0%20%7C%20%EC%99%84%EB%A3%8C-green)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Platform](https://img.shields.io/badge/Platform-Chrome%20Extension-brightgreen)
 
@@ -86,11 +86,13 @@ soccerHUD/
 
 ## 🚀 개발 로드맵
 
-### Phase 0: 환경 구축 및 검증 (진행 중)
+### Phase 0: 환경 구축 및 검증 ✅ (완료)
 - [x] 프로젝트 문서화
-- [ ] YOLOv8 설치 및 CoreML 변환
-- [ ] M4 성능 벤치마크 (목표: 20+ FPS)
-- [ ] 샘플 영상으로 공/선수 탐지 검증
+- [x] YOLOv8 설치 및 CoreML 변환
+- [x] M4 성능 벤치마크 (목표: 20+ FPS → **달성: 43.6 FPS**)
+- [x] 샘플 영상으로 공/선수 탐지 검증
+
+**결과**: [PHASE0_RESULTS.md](AGENTS/PHASE0_RESULTS.md) 참조
 
 ### Phase 1: 백엔드 파이프라인 (Week 2)
 - [ ] FastAPI + WebSocket 서버
@@ -215,6 +217,11 @@ MIT License - 자유롭게 사용, 수정, 배포 가능합니다.
 
 ---
 
-**⚡ 현재 상태**: Phase 0 - 환경 구축 및 검증 중
+**⚡ 현재 상태**: Phase 0 완료! ✅
 
-**🎯 다음 목표**: YOLOv8 M4 벤치마크 20+ FPS 달성
+**🎯 다음 목표**: Phase 1 - FastAPI 서버 및 YOLO 파이프라인 구축
+
+**📊 Phase 0 성과**:
+- FPS: **43.6 FPS** (yolov8s + MPS) | **119 FPS** (CoreML)
+- 선수 탐지: ✅ 성공
+- CoreML 변환: ✅ 성공 (PyTorch보다 134% 빠름)
