@@ -15,6 +15,8 @@
 - **YOLOv8s**: 객체 탐지 (공, 선수)
 - **CoreML**: Mac M-series GPU 가속 (119 FPS 달성!)
 - **K-means**: 유니폼 색상 클러스터링으로 팀 구분
+- **DeepSORT**: 프레임 간 선수 추적 (MobileNet ReID)
+- **deep-sort-realtime**: Python DeepSORT 구현체
 
 ### 백엔드
 - **Python 3.12**: 가상환경 사용
@@ -37,16 +39,18 @@
 ```
 soccerHUD/
 ├── .venv/                    # Python 3.12 가상환경
-├── src/                      # ✅ Phase 1 완료
+├── src/                      # ✅ Phase 3 완료
 │   ├── config.py             # 설정값 관리
 │   ├── models.py             # Pydantic 데이터 모델
-│   ├── inference.py          # YOLO 추론 파이프라인
-│   └── main.py               # FastAPI WebSocket 서버
-├── extension/                # ✅ Phase 2 완료
+│   ├── inference.py          # YOLO 추론 + 추적 파이프라인
+│   ├── main.py               # FastAPI WebSocket 서버 + 명단 API
+│   ├── tracker.py            # DeepSORT 선수 추적
+│   └── player_matcher.py     # 추적 ID → 선수 매칭
+├── extension/                # ✅ Phase 3 완료
 │   ├── manifest.json         # 익스텐션 설정
 │   ├── content.js            # 메인 로직 (비디오 캡처, 오버레이)
 │   ├── background.js         # Service Worker
-│   ├── popup.html/js         # 팝업 UI
+│   ├── popup.html/js         # 팝업 UI (명단 입력 탭 추가)
 │   ├── styles/
 │   │   └── overlay.css
 │   ├── icons/                # 임시 아이콘
@@ -57,6 +61,7 @@ soccerHUD/
 ├── tests/
 │   ├── test_image_pipeline.py      # ✅ 이미지 테스트
 │   ├── test_ball_detection.py      # ✅ 공 탐지 분석
+│   ├── test_phase3.py              # ✅ Phase 3 추적 테스트
 │   ├── extract_multiple_frames.py  # 여러 프레임 추출
 │   └── create_icons.py             # 아이콘 생성
 ├── sample_videos/
@@ -268,6 +273,36 @@ pip install -r requirements.txt
 - ✅ 한국 vs 파라과이 경기 영상으로 테스트 성공
 - ✅ 선수 탐지 및 팀 구분 매우 정확하게 작동
 
+### 2025-10-18 (Phase 3 완료)
+- ✅ PlayerTracker (DeepSORT) 통합
+- ✅ PlayerMatcher 구현 (추적 ID ↔ 선수 명단 매핑)
+- ✅ 명단 관리 API 엔드포인트 추가 (POST/GET /api/roster)
+- ✅ 크롬 익스텐션 명단 입력 UI (탭 구조로 개선)
+- ✅ Phase 3 테스트 작성 및 통과
+
+**구현된 기능:**
+1. **DeepSORT 추적** (src/tracker.py):
+   - MobileNet ReID embedder 사용
+   - 카메라 전환 자동 감지
+   - max_age=30, n_init=3 설정
+
+2. **PlayerMatcher** (src/player_matcher.py):
+   - 명단 설정: set_roster(home, away)
+   - 수동 매칭: match_player(track_id, team, number)
+   - 선수 정보 조회: get_player_info(track_id)
+   - 자동 enrichment: enrich_players(players)
+
+3. **명단 관리 UI** (extension/popup.html):
+   - 탭 구조: "컨트롤" + "명단"
+   - 홈/원정 팀 입력 폼
+   - 선수 추가/삭제 기능
+   - 서버 저장 버튼
+
+**테스트 결과:**
+- ✅ 추적 시스템 초기화 성공
+- ✅ 명단 설정 및 수동 매칭 성공
+- ✅ PlayerMatcher 정상 작동
+
 ### 다음 세션 시작 시
-- Phase 2 E2E 테스트 (실제 YouTube에서 테스트)
-- Phase 3 (선수 식별) 또는 Phase 5 (파인튜닝) 선택
+- Phase 3 E2E 테스트 (실제 YouTube 영상에서 추적 확인)
+- Phase 4 (통계 시스템) 또는 Phase 5 (파인튜닝) 선택

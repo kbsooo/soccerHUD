@@ -12,7 +12,8 @@
     }
 
     body {
-      width: 320px;
+      width: 400px;
+      min-height: 500px;
       padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -146,6 +147,168 @@
       font-size: 11px;
       opacity: 0.7;
     }
+
+    /* 탭 */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tab.active {
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    .tab:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* 명단 입력 */
+    .roster-section {
+      margin-bottom: 16px;
+    }
+
+    .roster-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .roster-title {
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .team-badge {
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .team-badge.home {
+      background: #ff4444;
+    }
+
+    .team-badge.away {
+      background: #4444ff;
+    }
+
+    .player-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .player-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .player-input-row input {
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .player-input-row input[name="number"] {
+      width: 60px;
+    }
+
+    .player-input-row input[name="name"] {
+      flex: 1;
+    }
+
+    .player-input-row input[name="position"] {
+      width: 70px;
+    }
+
+    .add-player-btn {
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .add-player-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .save-roster-btn {
+      width: 100%;
+      padding: 12px;
+      background: #00ff00;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all 0.3s;
+    }
+
+    .save-roster-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .player-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+
+    .player-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .player-item .player-info {
+      flex: 1;
+    }
+
+    .player-item .remove-btn {
+      padding: 4px 8px;
+      background: rgba(255, 0, 0, 0.5);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 11px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -154,37 +317,87 @@
     <p class="subtitle">AI 기반 선수 탐지 시스템</p>
   </div>
 
-  <div class="status">
-    <div class="status-item">
-      <span class="status-label">상태</span>
-      <span class="status-value">
-        <span class="status-indicator" id="status-indicator"></span>
-        <span id="status-text">대기 중</span>
-      </span>
+  <!-- 탭 -->
+  <div class="tabs">
+    <button class="tab active" data-tab="control">컨트롤</button>
+    <button class="tab" data-tab="roster">명단</button>
+  </div>
+
+  <!-- 컨트롤 탭 -->
+  <div id="control-tab" class="tab-content active">
+    <div class="status">
+      <div class="status-item">
+        <span class="status-label">상태</span>
+        <span class="status-value">
+          <span class="status-indicator" id="status-indicator"></span>
+          <span id="status-text">대기 중</span>
+        </span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">서버</span>
+        <span class="status-value" id="server-status">확인 중...</span>
+      </div>
     </div>
-    <div class="status-item">
-      <span class="status-label">서버</span>
-      <span class="status-value" id="server-status">확인 중...</span>
+
+    <div class="toggle-container">
+      <button id="toggle-btn" class="toggle-btn inactive">
+        활성화
+      </button>
+    </div>
+
+    <div class="info">
+      <strong>📌 사용 방법</strong>
+      <ul>
+        <li>YouTube 축구 영상 재생</li>
+        <li>"명단" 탭에서 팀 명단 입력</li>
+        <li>활성화 버튼 클릭</li>
+        <li>Python 서버 실행 필요</li>
+      </ul>
     </div>
   </div>
 
-  <div class="toggle-container">
-    <button id="toggle-btn" class="toggle-btn inactive">
-      활성화
-    </button>
-  </div>
+  <!-- 명단 탭 -->
+  <div id="roster-tab" class="tab-content">
+    <!-- 홈팀 -->
+    <div class="roster-section">
+      <div class="roster-header">
+        <span class="roster-title">홈팀</span>
+        <span class="team-badge home">HOME</span>
+      </div>
+      <div class="player-inputs">
+        <div class="player-input-row">
+          <input type="number" name="number" placeholder="#" id="home-number">
+          <input type="text" name="name" placeholder="이름" id="home-name">
+          <input type="text" name="position" placeholder="포지션" id="home-position">
+        </div>
+        <button class="add-player-btn" id="add-home-player">+ 선수 추가</button>
+      </div>
+      <div class="player-list" id="home-player-list"></div>
+    </div>
 
-  <div class="info">
-    <strong>📌 사용 방법</strong>
-    <ul>
-      <li>YouTube 축구 영상 재생</li>
-      <li>활성화 버튼 클릭</li>
-      <li>Python 서버 실행 필요</li>
-    </ul>
+    <!-- 원정팀 -->
+    <div class="roster-section">
+      <div class="roster-header">
+        <span class="roster-title">원정팀</span>
+        <span class="team-badge away">AWAY</span>
+      </div>
+      <div class="player-inputs">
+        <div class="player-input-row">
+          <input type="number" name="number" placeholder="#" id="away-number">
+          <input type="text" name="name" placeholder="이름" id="away-name">
+          <input type="text" name="position" placeholder="포지션" id="away-position">
+        </div>
+        <button class="add-player-btn" id="add-away-player">+ 선수 추가</button>
+      </div>
+      <div class="player-list" id="away-player-list"></div>
+    </div>
+
+    <!-- 저장 버튼 -->
+    <button class="save-roster-btn" id="save-roster-btn">명단 저장</button>
   </div>
 
   <div class="footer">
-    Phase 2 MVP • localhost:8765
+    Phase 3 • localhost:8765
   </div>
 
   <script src="popup.js"></script>

@@ -29,6 +29,8 @@ from models import (
     BallOwner,
     DetectionResult,
 )
+from tracker import PlayerTracker
+from player_matcher import PlayerMatcher
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,8 +39,12 @@ logger = logging.getLogger(__name__)
 class InferencePipeline:
     """YOLO 추론 및 선수/공 탐지 파이프라인"""
 
-    def __init__(self):
-        """모델 로딩"""
+    def __init__(self, enable_tracking: bool = True):
+        """모델 로딩
+
+        Args:
+            enable_tracking: DeepSORT 추적 활성화 여부 (기본: True)
+        """
         logger.info("InferencePipeline 초기화 시작...")
 
         # YOLO 모델 로드
@@ -49,6 +55,18 @@ class InferencePipeline:
         else:
             logger.info(f"PyTorch 모델 로딩: {MODEL_PATH}")
             self.model = YOLO(str(MODEL_PATH))
+
+        # DeepSORT 추적 (Phase 3)
+        self.enable_tracking = enable_tracking
+        if enable_tracking:
+            self.tracker = PlayerTracker()
+            logger.info("DeepSORT 추적 활성화")
+        else:
+            self.tracker = None
+            logger.info("추적 비활성화 (YOLO만 사용)")
+
+        # 선수 매칭 시스템 (Phase 3)
+        self.matcher = PlayerMatcher()
 
         # 성능 측정용
         self.frame_count = 0
@@ -84,7 +102,13 @@ class InferencePipeline:
         ball = self._extract_ball(ball_detections, frame)
         players = self._extract_players(detections, frame)
 
-        # 5. 공 소유자 계산
+        # 5. DeepSORT 추적 (Phase 3)
+        if self.enable_tracking and self.tracker and players:
+            players = self.tracker.update(players, frame)
+            # 추적 ID에 선수 명단 정보 추가
+            players = self.matcher.enrich_players(players)
+
+        # 6. 공 소유자 계산
         ball_owner = self._calculate_ball_owner(ball, players)
 
         # 성능 측정

@@ -7,6 +7,8 @@ import logging
 import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List
 import base64
 
 from inference import InferencePipeline
@@ -58,6 +60,90 @@ async def root():
 async def health():
     """상태 확인"""
     return {"status": "healthy", "model_loaded": pipeline is not None}
+
+
+# ============ Phase 3: 선수 명단 관리 API ============
+
+class PlayerInfo(BaseModel):
+    """선수 정보"""
+    name: str
+    number: int
+    position: str = None
+
+
+class RosterData(BaseModel):
+    """팀 명단"""
+    home: List[PlayerInfo]
+    away: List[PlayerInfo]
+
+
+@app.post("/api/roster")
+async def set_roster(roster: RosterData):
+    """
+    선수 명단 설정
+
+    요청 예시:
+    {
+        "home": [
+            {"name": "손흥민", "number": 7, "position": "FW"},
+            {"name": "김민재", "number": 3, "position": "CB"}
+        ],
+        "away": [
+            {"name": "메시", "number": 10, "position": "FW"}
+        ]
+    }
+    """
+    if pipeline is None:
+        return {"status": "error", "message": "Pipeline not initialized"}
+
+    # Pydantic 모델을 dict로 변환
+    home_players = [p.model_dump() for p in roster.home]
+    away_players = [p.model_dump() for p in roster.away]
+
+    pipeline.matcher.set_roster(home_players, away_players)
+
+    logger.info(f"명단 설정: 홈 {len(home_players)}명, 원정 {len(away_players)}명")
+
+    return {
+        "status": "success",
+        "roster": pipeline.matcher.get_roster_summary()
+    }
+
+
+@app.post("/api/match")
+async def match_player(track_id: int, team: str, number: int):
+    """
+    수동 매칭: 추적 ID를 특정 선수에 할당
+
+    요청 예시:
+    {
+        "track_id": 5,
+        "team": "home",
+        "number": 7
+    }
+    """
+    if pipeline is None:
+        return {"status": "error", "message": "Pipeline not initialized"}
+
+    pipeline.matcher.match_player(track_id, team, number)
+
+    return {
+        "status": "success",
+        "message": f"Track ID {track_id} matched to {team} #{number}"
+    }
+
+
+@app.get("/api/roster")
+async def get_roster():
+    """현재 명단 조회"""
+    if pipeline is None:
+        return {"status": "error", "message": "Pipeline not initialized"}
+
+    return {
+        "status": "success",
+        "roster": pipeline.matcher.roster,
+        "summary": pipeline.matcher.get_roster_summary()
+    }
 
 
 @app.websocket("/ws")
