@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoccerHUD</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 320px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    .header .subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .status {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .status-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .status-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .status-value {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    .status-indicator.active {
+      background: #00ff00;
+      box-shadow: 0 0 8px #00ff00;
+    }
+
+    .status-indicator.inactive {
+      background: #999;
+    }
+
+    .toggle-container {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .toggle-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .toggle-btn.active {
+      background: #00ff00;
+      color: #000;
+    }
+
+    .toggle-btn.inactive {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    .toggle-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .info {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .info strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .info ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .info li {
+      margin-bottom: 4px;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .info li:before {
+      content: '•';
+      position: absolute;
+      left: 0;
+    }
+
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>⚽ SoccerHUD</h1>
+    <p class="subtitle">AI 기반 선수 탐지 시스템</p>
+  </div>
+
+  <div class="status">
+    <div class="status-item">
+      <span class="status-label">상태</span>
+      <span class="status-value">
+        <span class="status-indicator" id="status-indicator"></span>
+        <span id="status-text">대기 중</span>
+      </span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">서버</span>
+      <span class="status-value" id="server-status">확인 중...</span>
+    </div>
+  </div>
+
+  <div class="toggle-container">
+    <button id="toggle-btn" class="toggle-btn inactive">
+      활성화
+    </button>
+  </div>
+
+  <div class="info">
+    <strong>📌 사용 방법</strong>
+    <ul>
+      <li>YouTube 축구 영상 재생</li>
+      <li>활성화 버튼 클릭</li>
+      <li>Python 서버 실행 필요</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    Phase 2 MVP • localhost:8765
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

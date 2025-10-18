@@ -74,14 +74,17 @@ class InferencePipeline:
         # 1. 프레임 디코딩
         frame = self._decode_frame(frame_bytes)
 
-        # 2. YOLO 추론
+        # 2. YOLO 추론 (선수용)
         detections = self._run_yolo(frame)
 
-        # 3. 공과 선수 분리
-        ball = self._extract_ball(detections, frame)
+        # 3. YOLO 추론 (공 전용 - 낮은 임계값)
+        ball_detections = self._run_yolo_for_ball(frame)
+
+        # 4. 공과 선수 분리
+        ball = self._extract_ball(ball_detections, frame)
         players = self._extract_players(detections, frame)
 
-        # 4. 공 소유자 계산
+        # 5. 공 소유자 계산
         ball_owner = self._calculate_ball_owner(ball, players)
 
         # 성능 측정
@@ -105,7 +108,7 @@ class InferencePipeline:
         return frame
 
     def _run_yolo(self, frame: np.ndarray):
-        """YOLO 추론 실행"""
+        """YOLO 추론 실행 (일반 - 선수용)"""
         results = self.model(
             frame,
             imgsz=INPUT_SIZE,
@@ -115,28 +118,63 @@ class InferencePipeline:
         )
         return results[0]  # 첫 번째 이미지 결과만 사용
 
+    def _run_yolo_for_ball(self, frame: np.ndarray):
+        """
+        YOLO 추론 실행 (공 전용 - 낮은 임계값)
+
+        사전학습 모델이 축구공을 잘 탐지하지 못하므로
+        낮은 신뢰도로 재실행
+        """
+        from config import BALL_CONFIDENCE_THRESHOLD
+
+        results = self.model(
+            frame,
+            imgsz=INPUT_SIZE,
+            conf=BALL_CONFIDENCE_THRESHOLD,  # 낮은 임계값
+            iou=IOU_THRESHOLD,
+            classes=[BALL_CLASS_ID],  # sports ball만
+            verbose=False,
+        )
+        return results[0]
+
     def _extract_ball(
         self, detections, frame: np.ndarray
     ) -> Optional[BallDetection]:
-        """공 탐지 결과 추출"""
+        """
+        공 탐지 결과 추출
+
+        Note: 사전학습 모델이 축구공을 잘 탐지하지 못하므로
+        낮은 신뢰도의 탐지도 허용 (추후 파인튜닝으로 개선 예정)
+        """
         boxes = detections.boxes
+
+        # BALL_CONFIDENCE_THRESHOLD import 추가 필요
+        from config import BALL_CONFIDENCE_THRESHOLD
+
+        best_ball = None
+        best_conf = 0.0
 
         for i in range(len(boxes)):
             cls = int(boxes.cls[i])
-            if cls == BALL_CLASS_ID:
-                box = boxes.xyxy[i].cpu().numpy()  # [x1, y1, x2, y2]
-                conf = float(boxes.conf[i])
+            conf = float(boxes.conf[i])
 
-                x1, y1, x2, y2 = box
-                return BallDetection(
-                    x=float((x1 + x2) / 2),  # 중심점
-                    y=float((y1 + y2) / 2),
-                    width=float(x2 - x1),
-                    height=float(y2 - y1),
-                    confidence=conf,
-                )
+            # sports ball이고 최소 임계값 이상이면
+            if cls == BALL_CLASS_ID and conf >= BALL_CONFIDENCE_THRESHOLD:
+                # 가장 신뢰도 높은 공 선택
+                if conf > best_conf:
+                    box = boxes.xyxy[i].cpu().numpy()
+                    x1, y1, x2, y2 = box
 
-        return None  # 공이 감지되지 않음
+                    best_ball = BallDetection(
+                        x=float((x1 + x2) / 2),
+                        y=float((y1 + y2) / 2),
+                        width=float(x2 - x1),
+                        height=float(y2 - y1),
+                        confidence=conf,
+                    )
+                    best_conf = conf
+
+        return best_ball
 
     def _extract_players(
         self, detections, frame: np.ndarray

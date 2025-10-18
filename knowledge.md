@@ -42,25 +42,34 @@ soccerHUD/
 │   ├── models.py             # Pydantic 데이터 모델
 │   ├── inference.py          # YOLO 추론 파이프라인
 │   └── main.py               # FastAPI WebSocket 서버
+├── extension/                # ✅ Phase 2 완료
+│   ├── manifest.json         # 익스텐션 설정
+│   ├── content.js            # 메인 로직 (비디오 캡처, 오버레이)
+│   ├── background.js         # Service Worker
+│   ├── popup.html/js         # 팝업 UI
+│   ├── styles/
+│   │   └── overlay.css
+│   ├── icons/                # 임시 아이콘
+│   │   ├── icon16.png
+│   │   ├── icon48.png
+│   │   └── icon128.png
+│   └── README.md             # 익스텐션 사용 가이드
 ├── tests/
-│   ├── test_image_pipeline.py     # ✅ 이미지 테스트 (성공)
-│   ├── test_pipeline.py           # 비디오 테스트 (예정)
-│   └── extract_frame.py           # YouTube 프레임 추출
+│   ├── test_image_pipeline.py      # ✅ 이미지 테스트
+│   ├── test_ball_detection.py      # ✅ 공 탐지 분석
+│   ├── extract_multiple_frames.py  # 여러 프레임 추출
+│   └── create_icons.py             # 아이콘 생성
 ├── sample_videos/
-│   ├── korea_vs_paraguay.mp4      # 테스트 영상 (95MB, 1280x720)
-│   └── korea_vs_paraguay_frame.jpg # 테스트 프레임
+│   ├── korea_vs_paraguay.mp4       # 테스트 영상
+│   └── test_frames/                # 8개 테스트 프레임
 ├── test_results/
-│   └── image_test_result.jpg      # ✅ 탐지 결과 시각화
+│   ├── image_test_result.jpg       # 탐지 결과
+│   └── ball_detection/             # 공 탐지 분석 결과
 ├── models/
-│   ├── yolov8n.pt
-│   ├── yolov8s.pt            # 현재 사용 중
-│   └── yolov8s.mlpackage     # CoreML 버전
-├── AGENTS/                   # 프로젝트 문서
-│   ├── ARCHITECTURE.md
-│   ├── DEVELOPMENT_PLAN.md
-│   ├── TODO.md
-│   └── PHASE0_RESULTS.md
-└── requirements.txt          # ✅ Phase 1 패키지 포함
+│   ├── yolov8s.pt                  # 현재 사용 중
+│   └── yolov8s.mlpackage           # CoreML 버전
+├── AGENTS/                          # 프로젝트 문서
+└── requirements.txt                 # Phase 1 패키지
 ```
 
 ---
@@ -158,6 +167,22 @@ PORT = 8765
 - 시스템 Python보다 가상환경 사용 필수
 - `source .venv/bin/activate` 후 작업
 
+### 4. ⚠️ 공 탐지 성능 이슈 (중요!)
+**문제**: 사전학습 YOLOv8 모델이 축구공을 잘 탐지하지 못함
+- 8개 테스트 프레임 중 1개만 탐지 (12.5% 탐지율)
+- 탐지된 프레임도 신뢰도 0.424로 낮음
+- COCO 데이터셋의 "sports ball" 클래스가 축구공에 최적화되지 않음
+
+**임시 해결책** (Phase 2 진행을 위해):
+- `BALL_CONFIDENCE_THRESHOLD = 0.3`으로 낮춤 (일반은 0.5)
+- 공 전용으로 별도 YOLO 추론 실행 (classes=[32])
+- 공이 탐지되는 프레임(frame_02_00.jpg)으로 테스트
+
+**근본 해결책** (Phase 5에서 진행):
+- 축구 전용 데이터셋으로 YOLOv8 파인튜닝 필요
+- 목표: 공 탐지율 70%+ 달성
+- Roboflow, SoccerNet 데이터셋 사용 예정
+
 ---
 
 ## 다음 할 일 (Phase 2 대비)
@@ -224,6 +249,17 @@ pip install -r requirements.txt
 
 ## 변경 이력
 
+### 2025-10-18 (Phase 2 완료)
+- ✅ Chrome Extension Manifest V3 구현
+- ✅ Content Script: YouTube 비디오 감지 및 프레임 캡처
+- ✅ WebSocket 클라이언트: 서버와 실시간 통신
+- ✅ SVG 오버레이: 선수/공/소유자 시각화
+- ✅ Popup UI: 활성화 토글 및 상태 표시
+- ✅ Background Service Worker: 상태 관리
+- ✅ 임시 아이콘 생성 (Python/OpenCV)
+- ⚠️ 공 탐지 이슈 확인 (8개 중 1개만 탐지)
+- 📝 임시 해결: BALL_CONFIDENCE_THRESHOLD = 0.3
+
 ### 2025-10-17 (Phase 1 완료)
 - ✅ FastAPI + WebSocket 서버 구현
 - ✅ YOLO 추론 파이프라인 구현
@@ -233,5 +269,5 @@ pip install -r requirements.txt
 - ✅ 선수 탐지 및 팀 구분 매우 정확하게 작동
 
 ### 다음 세션 시작 시
-- Phase 2 (크롬 익스텐션) 시작 또는
-- Phase 1 추가 테스트 (비디오, WebSocket)
+- Phase 2 E2E 테스트 (실제 YouTube에서 테스트)
+- Phase 3 (선수 식별) 또는 Phase 5 (파인튜닝) 선택
