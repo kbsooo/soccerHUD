@@ -117,14 +117,15 @@ class PlayerTracker:
             # 원본 선수 정보 복사
             tracked_player = matched_player.model_copy()
 
-            # 추적 ID 할당
-            tracked_player.id = track.track_id
+            # 추적 ID 할당 (DeepSORT의 track_id를 int로 변환)
+            tracked_player.id = int(track.track_id)
 
             # 바운딩 박스 업데이트 (DeepSORT가 보정한 위치)
-            tracked_player.x = track_x
-            tracked_player.y = track_y
-            tracked_player.width = ltwh[2]
-            tracked_player.height = ltwh[3]
+            # numpy float32 → Python float 변환
+            tracked_player.x = float(track_x)
+            tracked_player.y = float(track_y)
+            tracked_player.width = float(ltwh[2])
+            tracked_player.height = float(ltwh[3])
 
             tracked_players.append(tracked_player)
 

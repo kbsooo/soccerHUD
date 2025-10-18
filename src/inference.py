@@ -231,21 +231,21 @@ class InferencePipeline:
         for idx, i in enumerate(person_indices):
             box = boxes.xyxy[i].cpu().numpy()
             conf = float(boxes.conf[i])
-            x1, y1, x2, y2 = box
+            x1, y1, x2, y2 = map(float, box)  # numpy float32 → Python float
 
             team_label = team_labels[idx]
             team_name = "home" if team_label == 0 else "away"
 
             players.append(
                 PlayerDetection(
-                    id=i,  # 임시 ID (Phase 3에서 추적 ID로 교체)
+                    id=int(i),  # 임시 ID (Phase 3에서 추적 ID로 교체)
                     x=float((x1 + x2) / 2),
                     y=float((y1 + y2) / 2),
                     width=float(x2 - x1),
                     height=float(y2 - y1),
                     team=team_name,
                     color=uniform_colors[idx],
-                    confidence=conf,
+                    confidence=float(conf),
                 )
             )
 
@@ -334,7 +334,7 @@ class InferencePipeline:
         confidence = max(0.5, min(1.0, confidence))  # 0.5~1.0 범위
 
         return BallOwner(
-            player_id=closest_player.id,
+            player_id=int(closest_player.id),
             distance=float(min_distance),
-            confidence=confidence,
+            confidence=float(confidence),
         )

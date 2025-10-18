@@ -112,8 +112,18 @@ function connectWebSocket() {
   };
 
   ws.onmessage = (event) => {
-    const result = JSON.parse(event.data);
-    renderOverlay(result);
+    console.log('📦 WebSocket 메시지 수신:', event.data.substring(0, 100) + '...');
+    try {
+      const result = JSON.parse(event.data);
+      console.log('✅ JSON 파싱 성공:', {
+        players: result.players ? result.players.length : 0,
+        ball: !!result.ball,
+        ball_owner: result.ball_owner ? result.ball_owner.player_id : null
+      });
+      renderOverlay(result);
+    } catch (error) {
+      console.error('❌ JSON 파싱 실패:', error);
+    }
   };
 
   ws.onerror = (error) => {
@@ -205,51 +215,85 @@ function captureAndSendFrame() {
  * 탐지 결과를 오버레이로 렌더링
  */
 function renderOverlay(result) {
+  console.log('🎨 renderOverlay 호출됨');
+
   if (!overlayContainer) {
+    console.error('❌ overlayContainer가 없음!');
+    return;
+  }
+
+  if (!videoElement) {
+    console.error('❌ videoElement가 없음!');
     return;
   }
 
   // 기존 오버레이 지우기
   overlayContainer.innerHTML = '';
+  console.log('🧹 기존 오버레이 지움');
 
   // 비디오 크기 가져오기
   const videoRect = videoElement.getBoundingClientRect();
   const videoWidth = videoElement.videoWidth;
   const videoHeight = videoElement.videoHeight;
 
+  console.log('📐 비디오 크기:', {
+    displayWidth: videoRect.width,
+    displayHeight: videoRect.height,
+    videoWidth,
+    videoHeight
+  });
+
   // 스케일 계산 (화면에 표시되는 크기 vs 실제 비디오 크기)
   const scaleX = videoRect.width / videoWidth;
   const scaleY = videoRect.height / videoHeight;
 
+  // 공 소유자 ID 미리 확인
+  const ballOwnerId = result.ball_owner ? result.ball_owner.player_id : null;
+  console.log('⚽ 공 소유자 ID:', ballOwnerId);
+
   // 선수 그리기
   if (result.players && result.players.length > 0) {
-    result.players.forEach((player) => {
-      drawPlayer(player, scaleX, scaleY);
+    console.log(`👥 선수 ${result.players.length}명 그리기 시작`);
+    result.players.forEach((player, index) => {
+      // 공 소유자는 노란색으로
+      const hasBall = (player.id === ballOwnerId);
+      console.log(`  - 선수 #${index}: ID=${player.id}, team=${player.team}, hasBall=${hasBall}`);
+      drawPlayer(player, scaleX, scaleY, hasBall);
     });
+    console.log('✅ 선수 그리기 완료');
+  } else {
+    console.log('⚠️ 선수 탐지 없음');
   }
 
   // 공 그리기
   if (result.ball) {
+    console.log('⚽ 공 그리기');
     drawBall(result.ball, scaleX, scaleY);
-  }
-
-  // 공 소유자 강조
-  if (result.ball_owner) {
-    highlightBallOwner(result.ball_owner, result.players, scaleX, scaleY);
+  } else {
+    console.log('⚠️ 공 탐지 없음');
   }
 }
 
 /**
  * 선수 바운딩 박스 그리기
  */
-function drawPlayer(player, scaleX, scaleY) {
+function drawPlayer(player, scaleX, scaleY, hasBall = false) {
   const x = (player.x - player.width / 2) * scaleX;
   const y = (player.y - player.height / 2) * scaleY;
   const width = player.width * scaleX;
   const height = player.height * scaleY;
 
-  // 팀 색상
-  const color = player.team === 'home' ? '#FF0000' : '#0000FF';
+  console.log(`    🎨 drawPlayer: x=${x.toFixed(1)}, y=${y.toFixed(1)}, w=${width.toFixed(1)}, h=${height.toFixed(1)}`);
+
+  // 팀 색상 (공 소유자는 노란색)
+  let color;
+  if (hasBall) {
+    color = '#FFFF00'; // 노란색
+  } else {
+    color = player.team === 'home' ? '#FF0000' : '#0000FF'; // 빨강/파랑
+  }
+
+  console.log(`    🎨 색상: ${color}`);
 
   // 바운딩 박스
   const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -263,15 +307,25 @@ function drawPlayer(player, scaleX, scaleY) {
   rect.setAttribute('opacity', '0.8');
 
   overlayContainer.appendChild(rect);
+  console.log(`    ✅ rect 추가됨, overlayContainer 자식 수: ${overlayContainer.children.length}`);
 
   // 라벨
+  let label;
+  if (hasBall) {
+    label = `[${player.id}] ⚽ HAS BALL`;
+  } else if (player.name && player.number) {
+    label = `[${player.id}] ${player.name} #${player.number}`;
+  } else {
+    label = `[${player.id}] ${player.team.toUpperCase()}`;
+  }
+
   const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   text.setAttribute('x', x);
   text.setAttribute('y', y - 5);
   text.setAttribute('fill', color);
   text.setAttribute('font-size', '14');
   text.setAttribute('font-weight', 'bold');
-  text.textContent = player.team.toUpperCase();
+  text.textContent = label;
 
   overlayContainer.appendChild(text);
 }

@@ -155,10 +155,14 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     logger.info("WebSocket 클라이언트 연결됨")
 
+    frame_count = 0
     try:
         while True:
             # 프레임 수신
             data = await websocket.receive_text()
+            frame_count += 1
+
+            logger.info(f"프레임 #{frame_count} 수신 (크기: {len(data)} bytes)")
 
             # JSON 파싱 (또는 직접 Base64 디코딩)
             # 일단 간단하게 Base64 문자열로 받는다고 가정
@@ -169,15 +173,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # Base64 디코딩
                 frame_bytes = base64.b64decode(data)
+                logger.info(f"프레임 #{frame_count} 디코딩 완료 ({len(frame_bytes)} bytes)")
 
                 # YOLO 추론
                 result = pipeline.process(frame_bytes)
+                logger.info(f"프레임 #{frame_count} 처리 완료 - 선수: {len(result.players)}명, 공: {'O' if result.ball else 'X'}")
 
                 # 결과 전송 (Pydantic 모델이 자동으로 JSON 변환)
                 await websocket.send_json(result.model_dump())
 
             except Exception as e:
                 logger.error(f"프레임 처리 중 에러: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 await websocket.send_json(
                     {"error": str(e), "status": "processing_failed"}
                 )
