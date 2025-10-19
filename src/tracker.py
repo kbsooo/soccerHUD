@@ -48,7 +48,7 @@ class PlayerTracker:
 
         # 카메라 전환 감지용
         self.prev_detection_count = 0
-        self.camera_switch_threshold = 0.5  # 50% 이상 변화 시 전환으로 판단
+        self.camera_switch_threshold = 0.8  # 80% 이상 변화 시 전환으로 판단 (덜 민감하게)
 
         logger.info(f"PlayerTracker 초기화 완료 (embedder={embedder})")
 

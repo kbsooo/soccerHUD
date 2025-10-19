@@ -182,10 +182,16 @@ function captureAndSendFrame() {
     return;
   }
 
+  // 비디오가 준비되지 않았으면 스킵
+  if (!videoElement.videoWidth || !videoElement.videoHeight) {
+    console.warn('⚠️ 비디오 크기가 0 - 아직 로드 안됨');
+    return;
+  }
+
   try {
     // Canvas 생성 (캐싱하면 더 효율적이지만 일단 간단하게)
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     // 비디오 크기로 캔버스 설정 (640x360으로 다운스케일)
     const targetWidth = 640;
@@ -197,17 +203,34 @@ function captureAndSendFrame() {
     // 비디오 프레임을 캔버스에 그리기
     ctx.drawImage(videoElement, 0, 0, targetWidth, targetHeight);
 
+    // Canvas가 실제로 그려졌는지 확인 (CORS 문제 디버깅)
+    const imageData = ctx.getImageData(0, 0, Math.min(10, targetWidth), Math.min(10, targetHeight));
+    const isBlank = imageData.data.every(v => v === 0);
+    if (isBlank) {
+      console.error('❌ Canvas가 검은색 - CORS 문제 가능성');
+      // 그래도 일단 전송 시도
+    }
+
     // JPEG로 인코딩 (품질 70%)
     const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
 
     // Base64 데이터만 전송 (data:image/jpeg;base64, 제거)
     const base64Data = dataUrl.split(',')[1];
 
+    // 빈 데이터 체크
+    if (!base64Data || base64Data.length === 0) {
+      console.error('❌ Base64 데이터가 비어있음!');
+      return;
+    }
+
+    console.log(`📤 프레임 전송 (크기: ${base64Data.length} chars, ${Math.round(base64Data.length * 0.75)} bytes)`);
+
     // WebSocket으로 전송
     ws.send(base64Data);
 
   } catch (error) {
     console.error('❌ 프레임 캡처 실패:', error);
+    console.error('에러 세부사항:', error.message, error.stack);
   }
 }
 

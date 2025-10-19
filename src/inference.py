@@ -39,11 +39,11 @@ logger = logging.getLogger(__name__)
 class InferencePipeline:
     """YOLO 추론 및 선수/공 탐지 파이프라인"""
 
-    def __init__(self, enable_tracking: bool = True):
+    def __init__(self, enable_tracking: bool = False):  # 임시로 False
         """모델 로딩
 
         Args:
-            enable_tracking: DeepSORT 추적 활성화 여부 (기본: True)
+            enable_tracking: DeepSORT 추적 활성화 여부 (기본: False, 임시로 비활성화)
         """
         logger.info("InferencePipeline 초기화 시작...")
 
@@ -92,8 +92,18 @@ class InferencePipeline:
         # 1. 프레임 디코딩
         frame = self._decode_frame(frame_bytes)
 
+        # 🔍 디버깅: 처음 3프레임만 이미지로 저장
+        if self.frame_count < 3:
+            from pathlib import Path
+            debug_dir = Path("debug_frames")
+            debug_dir.mkdir(exist_ok=True)
+            debug_path = debug_dir / f"frame_{self.frame_count}.jpg"
+            cv2.imwrite(str(debug_path), frame)
+            logger.info(f"✅ 프레임 #{self.frame_count} 저장: {debug_path} (shape={frame.shape})")
+
         # 2. YOLO 추론 (선수용)
         detections = self._run_yolo(frame)
+        logger.info(f"🔍 YOLO 탐지 결과: {len(detections.boxes)} 개 객체")
 
         # 3. YOLO 추론 (공 전용 - 낮은 임계값)
         ball_detections = self._run_yolo_for_ball(frame)
@@ -101,6 +111,7 @@ class InferencePipeline:
         # 4. 공과 선수 분리
         ball = self._extract_ball(ball_detections, frame)
         players = self._extract_players(detections, frame)
+        logger.info(f"🔍 추출 완료: 선수 {len(players)}명, 공 {'O' if ball else 'X'}")
 
         # 5. DeepSORT 추적 (Phase 3)
         if self.enable_tracking and self.tracker and players:
@@ -207,12 +218,18 @@ class InferencePipeline:
         boxes = detections.boxes
         players = []
 
+        logger.info(f"🔍 _extract_players: 총 {len(boxes)} 개 박스")
+
         # person 클래스만 필터링
         person_indices = []
         for i in range(len(boxes)):
             cls = int(boxes.cls[i])
+            conf = float(boxes.conf[i])
+            logger.info(f"  - 박스 #{i}: class={cls}, conf={conf:.3f}")
             if cls == PERSON_CLASS_ID:
                 person_indices.append(i)
+
+        logger.info(f"🔍 person 클래스 필터링 결과: {len(person_indices)} 명")
 
         if not person_indices:
             return players

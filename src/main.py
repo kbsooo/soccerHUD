@@ -156,6 +156,12 @@ async def websocket_endpoint(websocket: WebSocket):
     logger.info("WebSocket 클라이언트 연결됨")
 
     frame_count = 0
+
+    # 즉시 테스트 메시지 전송
+    logger.info("테스트 메시지 전송 중...")
+    await websocket.send_json({"test": "hello from server", "status": "connected"})
+    logger.info("테스트 메시지 전송 완료")
+
     try:
         while True:
             # 프레임 수신
@@ -180,7 +186,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.info(f"프레임 #{frame_count} 처리 완료 - 선수: {len(result.players)}명, 공: {'O' if result.ball else 'X'}")
 
                 # 결과 전송 (Pydantic 모델이 자동으로 JSON 변환)
-                await websocket.send_json(result.model_dump())
+                result_json = result.model_dump()
+                logger.info(f"프레임 #{frame_count} JSON 생성 완료 (크기: {len(str(result_json))} chars)")
+
+                await websocket.send_json(result_json)
+                logger.info(f"프레임 #{frame_count} 응답 전송 완료")
 
             except Exception as e:
                 logger.error(f"프레임 처리 중 에러: {e}")

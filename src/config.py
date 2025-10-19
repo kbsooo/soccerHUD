@@ -13,12 +13,12 @@ PROJECT_ROOT = Path(__file__).parent.parent
 MODEL_PATH = PROJECT_ROOT / "yolov8s.pt"  # 또는 .mlpackage
 MODEL_SIZE = "small"  # nano | small | medium
 INPUT_SIZE = 640  # 입력 해상도
-CONFIDENCE_THRESHOLD = 0.5  # 탐지 신뢰도 임계값 (선수용)
-BALL_CONFIDENCE_THRESHOLD = 0.3  # 공 탐지 전용 임계값 (더 낮게)
+CONFIDENCE_THRESHOLD = 0.25  # 탐지 신뢰도 임계값 (선수용) - 낮춰서 더 많이 탐지
+BALL_CONFIDENCE_THRESHOLD = 0.15  # 공 탐지 전용 임계값 (더 낮게)
 IOU_THRESHOLD = 0.4  # NMS IoU 임계값
 
 # CoreML 설정 (Mac M-series)
-USE_COREML = True  # Mac이면 True
+USE_COREML = False  # PyTorch로 테스트 (CoreML 추론 불안정 문제)
 COREML_MODEL_PATH = PROJECT_ROOT / "yolov8s.mlpackage"
 
 # 서버 설정
