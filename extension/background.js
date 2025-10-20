@@ -39,8 +39,9 @@ function shouldSendLog(level, message) {
 }
 
 const logger = {
-  error: (msg) => {
-    console.error(msg);
+  error: (...args) => {
+    console.error(...args);
+    const msg = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
     if (shouldSendLog('error', msg)) {
       logQueue.push({ level: 'error', source: 'background', message: msg });
       processQueue();
@@ -64,127 +65,6 @@ const logger = {
 
 logger.log('🔧 SoccerHUD Background Service Worker 시작');
 
-let captureStream = null;
-let offscreenCreated = false;
-
-/**
- * Offscreen Document 생성
- */
-async function createOffscreenDocument() {
-  if (offscreenCreated) {
-    return;
-  }
-
-  try {
-    await chrome.offscreen.createDocument({
-      url: 'offscreen.html',
-      reasons: ['USER_MEDIA'],
-      justification: 'Capture video frames from tab for soccer player detection',
-    });
-
-    offscreenCreated = true;
-    logger.log('✅ Offscreen Document 생성 완료');
-  } catch (error) {
-    logger.error('❌ Offscreen Document 생성 실패:', error);
-    throw error;
-  }
-}
-
-/**
- * Tab Capture 시작 전체 플로우
- */
-async function startTabCaptureFlow(tabId) {
-  logger.log('🎬 Tab Capture Flow 시작, 탭 ID:', tabId);
-
-  // 1. Offscreen Document 생성
-  await createOffscreenDocument();
-
-  // 2. Tab Capture 시작
-  return new Promise((resolve, reject) => {
-    chrome.tabCapture.capture(
-      {
-        video: true,
-        audio: false,
-        videoConstraints: {
-          mandatory: {
-            minWidth: 1280,
-            minHeight: 720,
-            maxWidth: 1920,
-            maxHeight: 1080,
-            maxFrameRate: 30,
-          },
-        },
-      },
-      (stream) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-          return;
-        }
-
-        if (!stream) {
-          reject(new Error('Stream is null'));
-          return;
-        }
-
-        logger.log('✅ Tab Capture Stream 획득:', stream.getVideoTracks()[0].getSettings());
-
-        captureStream = stream;
-
-        // 3. Offscreen document에 stream 시작 알림
-        const streamId = stream.getVideoTracks()[0].id;
-        chrome.runtime.sendMessage(
-          { action: 'startCapture', streamId: streamId },
-          (response) => {
-            if (response && response.success) {
-              logger.log('✅ Offscreen에 캡처 시작 알림 완료');
-              resolve();
-            } else {
-              reject(new Error('Offscreen 캡처 시작 실패'));
-            }
-          }
-        );
-      }
-    );
-  });
-}
-
-/**
- * Tab Capture 중지
- */
-function stopTabCaptureFlow() {
-  // Offscreen에 중지 알림
-  if (offscreenCreated) {
-    chrome.runtime.sendMessage({ action: 'stopCapture' });
-  }
-
-  // Stream 중지
-  if (captureStream) {
-    captureStream.getTracks().forEach(track => track.stop());
-    captureStream = null;
-  }
-
-  logger.log('✅ Tab Capture Flow 중지 완료');
-}
-
-/**
- * Offscreen으로부터 프레임 가져오기
- */
-async function getFrameFromOffscreen() {
-  if (!offscreenCreated) {
-    throw new Error('Offscreen document가 생성되지 않음');
-  }
-
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage({ action: 'getFrame' }, (response) => {
-      if (response && response.success && response.frame) {
-        resolve(response.frame);
-      } else {
-        reject(new Error('프레임 캡처 실패'));
-      }
-    });
-  });
-}
-
 // 설치 시
 chrome.runtime.onInstalled.addListener(() => {
   console.log('✅ SoccerHUD 설치 완료');
@@ -205,43 +85,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.set({
       serverStatus: message.status,
     });
-  }
-
-  // Tab Capture 요청 처리
-  if (message.action === 'startTabCapture') {
-    console.log('🎥 Tab Capture 시작 요청 받음, 탭 ID:', sender.tab?.id);
-
-    startTabCaptureFlow(sender.tab.id)
-      .then(() => {
-        sendResponse({ success: true });
-      })
-      .catch((error) => {
-        logger.error('❌ Tab Capture 실패:', error);
-        sendResponse({ success: false, error: error.message });
-      });
-
-    return true; // 비동기 응답
-  }
-
-  // Tab Capture 중지 요청
-  if (message.action === 'stopTabCapture') {
-    logger.log('⏹️ Tab Capture 중지 요청');
-    stopTabCaptureFlow();
-    sendResponse({ success: true });
-    return true;
-  }
-
-  // 프레임 요청 처리
-  if (message.action === 'getFrame') {
-    getFrameFromOffscreen()
-      .then((frame) => {
-        sendResponse({ success: true, frame: frame });
-      })
-      .catch((error) => {
-        sendResponse({ success: false, error: error.message });
-      });
-
-    return true;
   }
 
   return true;

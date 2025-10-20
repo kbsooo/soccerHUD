@@ -39,8 +39,9 @@ function shouldSendLog(level, message) {
 }
 
 const logger = {
-  error: (msg) => {
-    console.error(msg);
+  error: (...args) => {
+    console.error(...args);
+    const msg = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
     if (shouldSendLog('error', msg)) {
       logQueue.push({ level: 'error', source: 'content', message: msg });
       processQueue();
@@ -237,56 +238,79 @@ function stopCapture() {
  * 화면 캡처 스트림 시작 (Screen Capture API 사용)
  */
 /**
- * Tab Capture 시작 (background에 요청)
+ * Canvas 및 Video 요소 준비
  */
-async function startTabCapture() {
+let canvas = null;
+let ctx = null;
+
+function setupCanvas() {
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    ctx = canvas.getContext('2d', { willReadFrequently: true });
+  }
+
+  // YouTube 비디오 요소 찾기
+  const video = document.querySelector('video');
+  if (!video) {
+    logger.warn('⚠️ YouTube 비디오 요소를 찾을 수 없음');
+    return false;
+  }
+
+  // Canvas 크기를 비디오 크기에 맞춤 (고해상도 유지)
+  if (video.videoWidth > 0 && video.videoHeight > 0) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    logger.log(`✅ Canvas 크기 설정: ${canvas.width}x${canvas.height}`);
+    return true;
+  }
+
+  logger.warn('⚠️ 비디오 크기 정보 없음 (아직 로드 안됨?)');
+  return false;
+}
+
+/**
+ * 비디오 캡처 시작 (YouTube video 요소 직접 캡처)
+ */
+async function startVideoCapture() {
   try {
-    logger.log('🎥 Tab Capture 시작 요청 중...');
+    logger.log('🎥 YouTube 비디오 직접 캡처 시작...');
 
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(
-        { action: 'startTabCapture' },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            logger.error('❌ Tab Capture 요청 실패:', chrome.runtime.lastError);
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
+    // Canvas 설정
+    const video = document.querySelector('video');
+    if (!video) {
+      throw new Error('YouTube 비디오 요소를 찾을 수 없습니다');
+    }
 
-          if (response && response.success) {
-            logger.log('✅ Tab Capture 시작 성공');
-            resolve(true);
-          } else {
-            logger.error('❌ Tab Capture 시작 실패:', response?.error);
-            reject(new Error(response?.error || 'Unknown error'));
-          }
-        }
-      );
-    });
+    // 비디오가 로드될 때까지 대기
+    if (video.readyState < 2) {
+      logger.log('⏳ 비디오 로딩 대기 중...');
+      await new Promise((resolve) => {
+        video.addEventListener('loadeddata', resolve, { once: true });
+      });
+    }
+
+    if (setupCanvas()) {
+      logger.log('✅ 비디오 캡처 준비 완료');
+      return true;
+    } else {
+      throw new Error('Canvas 설정 실패');
+    }
   } catch (error) {
-    logger.error('❌ Tab Capture 시작 중 에러:', error);
+    logger.error('❌ 비디오 캡처 시작 실패:', error);
     return false;
   }
 }
 
 /**
- * Tab Capture 중지 (background에 요청)
+ * 비디오 캡처 중지
  */
-function stopTabCapture() {
-  logger.log('⏹️ Tab Capture 중지 요청');
-
-  chrome.runtime.sendMessage(
-    { action: 'stopTabCapture' },
-    (response) => {
-      if (response && response.success) {
-        logger.log('✅ Tab Capture 중지 완료');
-      }
-    }
-  );
+function stopVideoCapture() {
+  logger.log('⏹️ 비디오 캡처 중지');
+  // Canvas는 그대로 유지 (재사용)
 }
 
 /**
- * 프레임 캡처 및 전송 (background로부터 프레임 가져오기)
+ * 프레임 캡처 및 전송 (YouTube video 요소 직접 캡처)
  */
 function captureAndSendFrame() {
   if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -294,32 +318,31 @@ function captureAndSendFrame() {
   }
 
   try {
-    // Background에게 프레임 요청
-    chrome.runtime.sendMessage(
-      { action: 'getFrame' },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          logger.warn('⚠️ 프레임 가져오기 실패:', chrome.runtime.lastError.message);
-          return;
-        }
+    const video = document.querySelector('video');
+    if (!video || video.paused || video.readyState < 2) {
+      return;
+    }
 
-        if (!response || !response.success || !response.frame) {
-          logger.warn('⚠️ 프레임 데이터 없음');
-          return;
-        }
+    // Canvas 크기가 변경되었으면 재설정
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      setupCanvas();
+    }
 
-        const base64Data = response.frame;
+    // 비디오 프레임을 Canvas에 그리기
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        if (!base64Data || base64Data.length === 0) {
-          logger.error('❌ Base64 데이터가 비어있음!');
-          return;
-        }
+    // JPEG로 인코딩 (품질 0.8)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    const base64Data = dataUrl.split(',')[1];
 
-        // WebSocket으로 전송
-        ws.send(base64Data);
-        console.log(`📤 프레임 전송 (크기: ${base64Data.length} chars)`);
-      }
-    );
+    if (!base64Data || base64Data.length === 0) {
+      logger.error('❌ Base64 데이터가 비어있음!');
+      return;
+    }
+
+    // WebSocket으로 전송
+    ws.send(base64Data);
+    console.log(`📤 프레임 전송 (크기: ${base64Data.length} chars, 해상도: ${canvas.width}x${canvas.height})`);
 
   } catch (error) {
     console.error('❌ 프레임 캡처 실패:', error);
@@ -553,10 +576,10 @@ async function activate() {
 
   logger.log('🚀 SoccerHUD 활성화');
 
-  // Tab Capture 시작 (background에 요청)
-  const captureStarted = await startTabCapture();
+  // YouTube 비디오 캡처 시작
+  const captureStarted = await startVideoCapture();
   if (!captureStarted) {
-    logger.error('❌ Tab Capture 실패 - SoccerHUD를 시작할 수 없습니다');
+    logger.error('❌ 비디오 캡처 실패 - SoccerHUD를 시작할 수 없습니다');
     return;
   }
 
@@ -577,7 +600,7 @@ function deactivate() {
   isActive = false;
 
   stopCapture();
-  stopTabCapture();
+  stopVideoCapture();
 
   if (ws) {
     ws.close();
