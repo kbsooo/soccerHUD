@@ -146,6 +146,32 @@ async def get_roster():
     }
 
 
+# ============ 익스텐션 로깅 엔드포인트 ============
+
+class ExtensionLog(BaseModel):
+    """익스텐션 로그"""
+    level: str  # error, warn, info
+    source: str  # content, background, offscreen
+    message: str
+    timestamp: str
+
+
+@app.post("/api/log")
+async def receive_log(log: ExtensionLog):
+    """익스텐션으로부터 로그 수신"""
+    # 로그 레벨에 따라 터미널 출력
+    prefix = f"[EXT:{log.source.upper()}]"
+
+    if log.level == "error":
+        logger.error(f"{prefix} {log.message}")
+    elif log.level == "warn":
+        logger.warning(f"{prefix} {log.message}")
+    else:
+        logger.info(f"{prefix} {log.message}")
+
+    return {"status": "ok"}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """

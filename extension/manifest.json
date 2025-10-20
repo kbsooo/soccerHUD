@@ -6,7 +6,9 @@
 
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "tabCapture",
+    "offscreen"
   ],
 
   "host_permissions": [

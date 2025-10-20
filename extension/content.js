@@ -3,7 +3,66 @@
  * YouTube 비디오에서 프레임을 캡처하고 서버로 전송하여 결과를 오버레이로 표시
  */
 
-console.log('🎯 SoccerHUD Content Script 로드됨');
+// ============ 로깅 유틸리티 ============
+const SERVER_LOG_URL = 'http://localhost:8765/api/log';
+let logQueue = [];
+let isSending = false;
+
+async function sendLogToServer(level, source, message) {
+  const logData = { level, source, message, timestamp: new Date().toISOString() };
+  try {
+    await fetch(SERVER_LOG_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(logData),
+    });
+  } catch (error) {
+    // 무시
+  }
+}
+
+async function processQueue() {
+  if (isSending || logQueue.length === 0) return;
+  isSending = true;
+  while (logQueue.length > 0) {
+    const log = logQueue.shift();
+    await sendLogToServer(log.level, log.source, log.message);
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  isSending = false;
+}
+
+function shouldSendLog(level, message) {
+  if (level === 'error') return true;
+  const keywords = ['SoccerHUD', 'Tab Capture', 'WebSocket', 'Offscreen', '❌', '✅', '⚠️', '🎥', '🔌', '📤'];
+  return keywords.some(keyword => message.includes(keyword));
+}
+
+const logger = {
+  error: (msg) => {
+    console.error(msg);
+    if (shouldSendLog('error', msg)) {
+      logQueue.push({ level: 'error', source: 'content', message: msg });
+      processQueue();
+    }
+  },
+  warn: (msg) => {
+    console.warn(msg);
+    if (shouldSendLog('warn', msg)) {
+      logQueue.push({ level: 'warn', source: 'content', message: msg });
+      processQueue();
+    }
+  },
+  log: (msg) => {
+    console.log(msg);
+    if (shouldSendLog('info', msg)) {
+      logQueue.push({ level: 'info', source: 'content', message: msg });
+      processQueue();
+    }
+  },
+};
+
+logger.log('🎯 SoccerHUD Content Script 로드됨');
 
 // 전역 상태
 let videoElement = null;
@@ -23,7 +82,7 @@ const CONFIG = {
  * 초기화: YouTube 비디오 감지 및 오버레이 생성
  */
 function initialize() {
-  console.log('🔍 SoccerHUD 초기화 중...');
+  logger.log('🔍 SoccerHUD 초기화 중...');
 
   // 비디오 요소 찾기
   findVideoElement();
@@ -107,7 +166,7 @@ function connectWebSocket() {
   ws = new WebSocket(CONFIG.SERVER_URL);
 
   ws.onopen = () => {
-    console.log('✅ WebSocket 연결 성공!');
+    logger.log('✅ WebSocket 연결 성공!');
     startCapture();
   };
 
@@ -127,11 +186,11 @@ function connectWebSocket() {
   };
 
   ws.onerror = (error) => {
-    console.error('❌ WebSocket 에러:', error);
+    logger.error('❌ WebSocket 에러:', error);
   };
 
   ws.onclose = () => {
-    console.log('🔌 WebSocket 연결 종료');
+    logger.log('🔌 WebSocket 연결 종료');
     stopCapture();
 
     // 활성화 상태이면 재연결 시도
@@ -175,58 +234,92 @@ function stopCapture() {
 }
 
 /**
- * 프레임 캡처 및 전송
+ * 화면 캡처 스트림 시작 (Screen Capture API 사용)
+ */
+/**
+ * Tab Capture 시작 (background에 요청)
+ */
+async function startTabCapture() {
+  try {
+    logger.log('🎥 Tab Capture 시작 요청 중...');
+
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { action: 'startTabCapture' },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            logger.error('❌ Tab Capture 요청 실패:', chrome.runtime.lastError);
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+
+          if (response && response.success) {
+            logger.log('✅ Tab Capture 시작 성공');
+            resolve(true);
+          } else {
+            logger.error('❌ Tab Capture 시작 실패:', response?.error);
+            reject(new Error(response?.error || 'Unknown error'));
+          }
+        }
+      );
+    });
+  } catch (error) {
+    logger.error('❌ Tab Capture 시작 중 에러:', error);
+    return false;
+  }
+}
+
+/**
+ * Tab Capture 중지 (background에 요청)
+ */
+function stopTabCapture() {
+  logger.log('⏹️ Tab Capture 중지 요청');
+
+  chrome.runtime.sendMessage(
+    { action: 'stopTabCapture' },
+    (response) => {
+      if (response && response.success) {
+        logger.log('✅ Tab Capture 중지 완료');
+      }
+    }
+  );
+}
+
+/**
+ * 프레임 캡처 및 전송 (background로부터 프레임 가져오기)
  */
 function captureAndSendFrame() {
-  if (!videoElement || !ws || ws.readyState !== WebSocket.OPEN) {
-    return;
-  }
-
-  // 비디오가 준비되지 않았으면 스킵
-  if (!videoElement.videoWidth || !videoElement.videoHeight) {
-    console.warn('⚠️ 비디오 크기가 0 - 아직 로드 안됨');
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
     return;
   }
 
   try {
-    // Canvas 생성 (캐싱하면 더 효율적이지만 일단 간단하게)
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    // Background에게 프레임 요청
+    chrome.runtime.sendMessage(
+      { action: 'getFrame' },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          logger.warn('⚠️ 프레임 가져오기 실패:', chrome.runtime.lastError.message);
+          return;
+        }
 
-    // 비디오 크기로 캔버스 설정 (640x360으로 다운스케일)
-    const targetWidth = 640;
-    const targetHeight = Math.floor((videoElement.videoHeight / videoElement.videoWidth) * targetWidth);
+        if (!response || !response.success || !response.frame) {
+          logger.warn('⚠️ 프레임 데이터 없음');
+          return;
+        }
 
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
+        const base64Data = response.frame;
 
-    // 비디오 프레임을 캔버스에 그리기
-    ctx.drawImage(videoElement, 0, 0, targetWidth, targetHeight);
+        if (!base64Data || base64Data.length === 0) {
+          logger.error('❌ Base64 데이터가 비어있음!');
+          return;
+        }
 
-    // Canvas가 실제로 그려졌는지 확인 (CORS 문제 디버깅)
-    const imageData = ctx.getImageData(0, 0, Math.min(10, targetWidth), Math.min(10, targetHeight));
-    const isBlank = imageData.data.every(v => v === 0);
-    if (isBlank) {
-      console.error('❌ Canvas가 검은색 - CORS 문제 가능성');
-      // 그래도 일단 전송 시도
-    }
-
-    // JPEG로 인코딩 (품질 70%)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-
-    // Base64 데이터만 전송 (data:image/jpeg;base64, 제거)
-    const base64Data = dataUrl.split(',')[1];
-
-    // 빈 데이터 체크
-    if (!base64Data || base64Data.length === 0) {
-      console.error('❌ Base64 데이터가 비어있음!');
-      return;
-    }
-
-    console.log(`📤 프레임 전송 (크기: ${base64Data.length} chars, ${Math.round(base64Data.length * 0.75)} bytes)`);
-
-    // WebSocket으로 전송
-    ws.send(base64Data);
+        // WebSocket으로 전송
+        ws.send(base64Data);
+        console.log(`📤 프레임 전송 (크기: ${base64Data.length} chars)`);
+      }
+    );
 
   } catch (error) {
     console.error('❌ 프레임 캡처 실패:', error);
@@ -452,13 +545,21 @@ function onVideoSeeked() {
 /**
  * SoccerHUD 활성화
  */
-function activate() {
+async function activate() {
   if (isActive) {
     console.log('⚠️ 이미 활성화됨');
     return;
   }
 
-  console.log('🚀 SoccerHUD 활성화');
+  logger.log('🚀 SoccerHUD 활성화');
+
+  // Tab Capture 시작 (background에 요청)
+  const captureStarted = await startTabCapture();
+  if (!captureStarted) {
+    logger.error('❌ Tab Capture 실패 - SoccerHUD를 시작할 수 없습니다');
+    return;
+  }
+
   isActive = true;
   connectWebSocket();
 }
@@ -472,10 +573,11 @@ function deactivate() {
     return;
   }
 
-  console.log('⏹️ SoccerHUD 비활성화');
+  logger.log('⏹️ SoccerHUD 비활성화');
   isActive = false;
 
   stopCapture();
+  stopTabCapture();
 
   if (ws) {
     ws.close();
